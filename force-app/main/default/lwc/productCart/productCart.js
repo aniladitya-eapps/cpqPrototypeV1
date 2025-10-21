@@ -6,6 +6,7 @@ import generateQuotePdf from '@salesforce/apex/QuotePdfGenerator.generateQuotePd
 
 
 export default class ProductCart extends LightningElement {
+@api quoteId; // Optional: pass a Quote__c Id from parent when available
 @track cartItems = [];
 @track customText = '';
 pdfLibsNotLoaded = true;
@@ -23,6 +24,43 @@ this.pdfLibsNotLoaded = false;
 .catch(() => {
 this.pdfLibsNotLoaded = true; // keep button disabled
 });
+}
+
+/**
+ * Download PDF using server-side Apex + Visualforce.
+ * Requires quoteId to be set (passed from parent).
+ */
+async handleDownloadServerPdf() {
+  try {
+    if (!this.quoteId) {
+      // No Quote id; you can wire this to create one first (future enhancement)
+      // For now we simply return.
+      // Consider surfacing a toast if you have lightning/platformShowToastEvent available.
+      return;
+    }
+    const base64 = await generateQuotePdf({ quoteId: this.quoteId, customText: this.customText || '' });
+
+    // Create a blob and trigger download
+    const byteCharacters = atob(base64);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Quote.pdf';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    // Fallback to print if CSP blocks blob or other errors occur
+    this.handlePrint();
+  }
 }
 
 
