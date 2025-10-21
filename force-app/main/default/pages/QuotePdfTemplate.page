@@ -1,0 +1,129 @@
+<apex:page controller="QuotePdfController" renderAs="pdf" applyBodyTag="false" applyHtmlTag="false" showHeader="false">
+<html>
+<head>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+        }
+        .quote-info {
+            margin-bottom: 20px;
+        }
+        .quote-info div {
+            margin: 5px 0;
+        }
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        .items-table th, .items-table td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: left;
+        }
+        .items-table th {
+            background-color: #f2f2f2;
+        }
+        .totals-section {
+            margin: 20px 0;
+        }
+        .totals-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+        }
+        .custom-text {
+            margin-top: 20px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            background-color: #f9f9f9;
+        }
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+        }
+        .muted {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Quote Summary</h1>
+    </div>
+    
+    <div class="quote-info">
+        <div><strong>Quote Number:</strong> {!quote.Quote_Number__c}</div>
+        <div><strong>Account:</strong> {!quote.Account__r.Name}</div>
+        <div><strong>Created Date:</strong> {!quote.CreatedDate}</div>
+    </div>
+    
+    <h2>Items</h2>
+    <apex:outputPanel rendered="{!NOT(ISNULL(quoteLines)) && (quoteLines.size > 0)}">
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+            <tbody>
+                <apex:repeat value="{!quoteLines}" var="line">
+                    <tr>
+                        <td>Item</td>
+                        <td>Details</td>
+                    </tr>
+                </apex:repeat>
+            </tbody>
+        </table>
+    </apex:outputPanel>
+    <apex:outputPanel rendered="{!ISNULL(quoteLines) || (quoteLines.size = 0)}">
+        <p class="muted">No line items available.</p>
+    </apex:outputPanel>
+    
+    <div class="totals-section">
+        <div class="totals-row">
+            <span>Subtotal:</span>
+            <span>{!quote.Subtotal_Rollup__c}</span>
+        </div>
+        <div class="totals-row">
+            <span>Shipping:</span>
+            <span>{!quote.Shipping_Amount__c}</span>
+        </div>
+        <div class="totals-row">
+            <span>Tax:</span>
+            <span>{!quote.Tax_Total_Formula__c}</span>
+        </div>
+        <div class="totals-row">
+            <span>Discount:</span>
+            <span>{!quote.Header_Discount_Amt__c}</span>
+        </div>
+        <div class="totals-row">
+            <span><strong>Grand Total:</strong></span>
+            <span><strong>{!quote.Grand_Total_Formula__c}</strong></span>
+        </div>
+    </div>
+    
+    <apex:outputPanel rendered="{!NOT(ISBLANK(customText))}">
+        <div class="custom-text">
+            <h3>Custom Text</h3>
+            <p>{!customText}</p>
+        </div>
+    </apex:outputPanel>
+    
+    <div class="footer">
+        Generated on {!NOW()}
+    </div>
+</body>
+</html>
+</apex:page>

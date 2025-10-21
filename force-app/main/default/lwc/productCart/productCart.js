@@ -2,10 +2,12 @@ import { LightningElement, api, track } from 'lwc';
 import { loadScript } from 'lightning/platformResourceLoader';
 import jsPDF from '@salesforce/resourceUrl/jsPDF';
 import jsPDFAutoTable from '@salesforce/resourceUrl/jsPDF_AutoTable';
+import generateQuotePdf from '@salesforce/apex/QuotePdfGenerator.generateQuotePdf';
 
 
 export default class ProductCart extends LightningElement {
 @track cartItems = [];
+@track customText = '';
 pdfLibsNotLoaded = true;
 
 
@@ -81,6 +83,86 @@ doc.save('Cart.pdf');
 // If PDF fails (e.g., CSP), fallback to browser print
 this.handlePrint();
   }
+}
+
+
+handleGenerateQuotePdf() {
+  // Create a simple quote record with cart items for PDF generation
+  // In a real implementation, you'd create a Quote__c record first
+  
+  // For now, we'll use the existing cart data to generate a PDF
+  // We'll create a temporary quote for demonstration purposes
+  
+  // In a production environment, you would:
+  // 1. Create a Quote__c record
+  // 2. Add Quote_Line__c records for each cart item
+  // 3. Call the generateQuotePdf method with the quote ID and custom text
+  
+  // Since we don't have a backend service to create quotes yet,
+  // we'll just use the existing jsPDF functionality to generate a PDF
+  // with the cart items and custom text
+  
+  try {
+    const { jsPDF } = window.jspdf || {};
+    if (!jsPDF || !window.jspdf) {
+      this.handlePrint();
+      return;
+    }
+    
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+    
+    // Title
+    doc.setFontSize(18);
+    doc.text('Quote Summary', 40, 40);
+    
+    // Custom text if provided
+    if (this.customText) {
+      doc.setFontSize(12);
+      doc.text('Custom Text:', 40, 60);
+      doc.setFontSize(10);
+      // Wrap text to fit within page width
+      const wrappedText = doc.splitTextToSize(this.customText, 400);
+      doc.text(wrappedText, 40, 70);
+    }
+    
+    // Cart items table
+    const head = [['Name', 'Product Code', 'Qty', 'Unit Price', 'Line Total']];
+    const body = this.cartItems.map(i => [
+      i.Name || '',
+      i.ProductCode || '',
+      String(i.Quantity || 1),
+      '$' + (i.UnitPrice || 0).toFixed(2),
+      '$' + (Number(i.UnitPrice || 0) * Number(i.Quantity || 0)).toFixed(2)
+    ]);
+    
+    // autoTable attached globally by plugin
+    // eslint-disable-next-line no-undef
+    window.jspdfAutoTable ? window.jspdfAutoTable(doc, { head, body, startY: 120 }) : doc.autoTable({ head, body, startY: 120 });
+    
+    // Totals
+    const subtotal = this.subtotal;
+    const tax = this.taxAmount;
+    const shipping = this.shippingAmount;
+    const grandTotal = this.grandTotal;
+    
+    doc.setFontSize(12);
+    doc.text(`Subtotal: $${subtotal.toFixed(2)}`, 40, doc.lastAutoTable.finalY + 20);
+    doc.text(`Tax (10%): $${tax.toFixed(2)}`, 40, doc.lastAutoTable.finalY + 35);
+    doc.text(`Shipping: $${shipping.toFixed(2)}`, 40, doc.lastAutoTable.finalY + 50);
+    doc.setFontSize(14);
+    doc.text(`Grand Total: $${grandTotal.toFixed(2)}`, 40, doc.lastAutoTable.finalY + 65);
+    
+    doc.save('Quote.pdf');
+  } catch (e) {
+    // If PDF fails (e.g., CSP), fallback to browser print
+    this.handlePrint();
+  }
+}
+
+
+// Handle input change for custom text
+handleCustomTextChange(event) {
+  this.customText = event.target.value;
 }
 
   // Computed totals (Subtotal)
