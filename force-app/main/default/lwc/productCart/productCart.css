@@ -1,0 +1,66 @@
+/* Root spacing inside the lightning-card body */
+:host {
+  display: block;
+  background: var(--lwc-colorBackgroundAlt);
+}
+
+/* Cart item list */
+ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--lwc-colorBorder);
+}
+
+li {
+  border-bottom: 1px solid var(--lwc-colorBorder);
+  padding-block: 0.5rem;
+}
+
+/* Toolbar button area */
+.toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Totals section */
+.slds-border_top {
+  border-top: 1px solid var(--lwc-colorBorder);
+}
+
+/* Align right for numbers */
+.slds-text-align_right {
+  text-align: right;
+}
+
+/* Print-friendly area */
+.cart-printable {
+  background: white;
+}
+
+/* Print-only styles */
+@media print {
+  body * {
+    visibility: hidden !important;
+  }
+
+  .cart-printable,
+  .cart-printable * {
+    visibility: visible !important;
+  }
+
+  .cart-printable {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+  }
+
+  /* Hide toolbar buttons when printing */
+  .toolbar {
+    display: none !important;
+  }
+}

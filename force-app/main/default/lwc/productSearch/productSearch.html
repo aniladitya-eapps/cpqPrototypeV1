@@ -1,0 +1,49 @@
+<template>
+  <lightning-card title="Product Search" icon-name="standard:product">
+    <div class="slds-m-around_medium">
+      <lightning-input
+        type="search"
+        label="Search Products"
+        value={searchKey}
+        onchange={handleSearchKeyChange}
+        placeholder="Search products by name...">
+      </lightning-input>
+    </div>
+
+    <template if:true={isLoading}>
+      <lightning-spinner alternative-text="Loading products..." size="medium"></lightning-spinner>
+    </template>
+
+    <!-- Paged datatable -->
+    <lightning-datatable
+      key-field="Id"
+      data={pagedRows}
+      columns={columns}
+      hide-checkbox-column
+      onrowaction={handleRowAction}
+      sorted-by={sortedBy}
+      sorted-direction={sortedDirection}
+      onsort={handleSort}
+      draft-values={draftValues}
+      onsave={handleSave}
+      inline-editable>
+    </lightning-datatable>
+
+    <!-- Pagination controls -->
+    <div class="slds-m-around_small slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+      <div>
+        Page {page} of {totalPages} • {rows.length} total
+      </div>
+      <div class="slds-button-group" role="group">
+        <lightning-button label="First" onclick={goFirst} disabled={isFirstPage}></lightning-button>
+        <lightning-button label="Prev" onclick={goPrev} disabled={isFirstPage}></lightning-button>
+        <lightning-button label="Next" onclick={goNext} disabled={isLastPage}></lightning-button>
+        <lightning-button label="Last" onclick={goLast} disabled={isLastPage}></lightning-button>
+      </div>
+    </div>
+
+    <template if:true={error}>
+      <p class="slds-text-color_error slds-p-horizontal_medium">{error}</p>
+    </template>
+  </lightning-card>
+</template>

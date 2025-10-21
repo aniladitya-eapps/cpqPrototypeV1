@@ -1,0 +1,71 @@
+<template>
+<lightning-card title="Cart" icon-name="utility:cart">
+<template if:true={cartItems.length}>
+<div class="toolbar slds-p-horizontal_small slds-p-top_small">
+<lightning-button-group>
+<lightning-button label="Print" onclick={handlePrint}></lightning-button>
+<lightning-button label="Download PDF" variant="brand" onclick={handleDownloadPdf} disabled={pdfLibsNotLoaded}></lightning-button>
+</lightning-button-group>
+</div>
+
+
+<div class="cart-printable" id="printArea">
+<h2 class="slds-text-heading_small slds-p-horizontal_small">Cart Items</h2>
+<ul class="slds-m-around_medium">
+<template for:each={cartItemsWithTotals} for:item="item">
+<li key={item.Id} class="slds-p-vertical_x-small slds-grid slds-grid_align-spread">
+<div>
+<strong>{item.Name}</strong>
+<span class="slds-m-left_small">{item.ProductCode}</span>
+<span class="slds-m-left_small">Qty: {item.Quantity}</span>
+<span class="slds-m-left_small">Line Total: {item.lineTotal}</span>
+</div>
+<lightning-button-icon icon-name="utility:delete" alternative-text="Remove" data-id={item.Id} onclick={handleRemove}></lightning-button-icon>
+</li>
+</template>
+</ul>
+
+<!-- Grand Total Section -->
+<div class="slds-p-around_medium slds-border_top">
+  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread">
+    <div>
+      <strong>Subtotal:</strong>
+    </div>
+    <div>
+      <lightning-formatted-number value={subtotal} style="currency" currency-code="USD"></lightning-formatted-number>
+    </div>
+  </div>
+  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-top_small">
+    <div>
+      <strong>Tax (10%):</strong>
+    </div>
+    <div>
+      <lightning-formatted-number value={taxAmount} style="currency" currency-code="USD"></lightning-formatted-number>
+    </div>
+  </div>
+  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-top_small">
+    <div>
+      <strong>Shipping:</strong>
+    </div>
+    <div>
+      <lightning-formatted-number value={shippingAmount} style="currency" currency-code="USD"></lightning-formatted-number>
+    </div>
+  </div>
+  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-top_small slds-border_top slds-m-top_small">
+    <div>
+      <strong>Grand Total:</strong>
+    </div>
+    <div>
+      <lightning-formatted-number value={grandTotal} style="currency" currency-code="USD"></lightning-formatted-number>
+    </div>
+  </div>
+</div>
+</div>
+</template>
+
+
+<template if:false={cartItems.length}>
+<p class="slds-p-around_medium">Your cart is empty.</p>
+</template>
+</lightning-card>
+</template>
