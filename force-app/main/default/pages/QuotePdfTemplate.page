@@ -63,8 +63,8 @@
     </div>
     
     <div class="quote-info">
-        <div><strong>Quote Number:</strong> {!quote.Quote_Number__c}</div>
-        <div><strong>Account:</strong> {!quote.Account__r.Name}</div>
+        <div><strong>Quote Number:</strong> {!quote.cg_Quote_number__c}</div>
+        <div><strong>Account:</strong> {!quote.cg_Account__r.Name}</div>
         <div><strong>Created Date:</strong> {!quote.CreatedDate}</div>
     </div>
     
@@ -98,7 +98,7 @@
         <p class="muted">No line items available.</p>
     </apex:outputPanel>
     
-    <div class="totals-section">
+  <!--  <div class="totals-section">
         <div class="totals-row">
             <span>Subtotal:</span>
             <span>{!quote.Subtotal_Rollup__c}</span>
@@ -119,7 +119,7 @@
             <span><strong>Grand Total:</strong></span>
             <span><strong>{!quote.Grand_Total_Formula__c}</strong></span>
         </div>
-    </div>
+    </div>-->
     
     <apex:outputPanel rendered="{!NOT(ISBLANK(customText))}">
         <div class="custom-text">

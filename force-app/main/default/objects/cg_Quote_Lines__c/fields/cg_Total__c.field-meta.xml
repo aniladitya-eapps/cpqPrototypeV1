@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>cg_Total__c</fullName>
+    <formula>(
+  (cg_Unit_Price__c * cg_Quantity__c)
+  -
+  (
+    /* Discount by percent (if present) */
+    (cg_Unit_Price__c * cg_Quantity__c) * 
+    (IF(ISBLANK(cg_Discount_percent__c), 0, cg_Discount_percent__c / 100))
+    +
+    /* Discount by amount (if present) */
+    IF(ISBLANK(cg_Discount_Amount__c), 0, cg_Discount_Amount__c)
+  )
+)</formula>
+    <formulaTreatBlanksAs>BlankAsZero</formulaTreatBlanksAs>
+    <label>Total</label>
+    <precision>18</precision>
+    <required>false</required>
+    <scale>4</scale>
+    <trackHistory>false</trackHistory>
+    <trackTrending>false</trackTrending>
+    <type>Currency</type>
+</CustomField>

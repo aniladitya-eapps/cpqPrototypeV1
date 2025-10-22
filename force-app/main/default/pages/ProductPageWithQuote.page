@@ -1,0 +1,9 @@
+<apex:page controller="ProductPageWithQuoteController" showHeader="false" sidebar="false" applyBodyTag="false" applyHtmlTag="false">
+    <apex:includeScript value="/lightning/lightning.out.js"/>
+    <div id="container"></div>
+    <script>
+        $Lightning.use("c__productPageApp", function() {
+            $Lightning.createComponent("c__productPage", {"quoteId": "{!quoteId}"}, "container");
+        });
+    </script>
+</apex:page>

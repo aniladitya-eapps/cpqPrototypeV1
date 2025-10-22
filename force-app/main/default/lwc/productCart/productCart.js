@@ -3,32 +3,39 @@ import { loadScript } from 'lightning/platformResourceLoader';
 import jsPDF from '@salesforce/resourceUrl/jsPDF';
 import jsPDFAutoTable from '@salesforce/resourceUrl/jsPDF_AutoTable';
 import generateQuotePdf from '@salesforce/apex/QuotePdfGenerator.generateQuotePdf';
+import getQuoteNumber from '@salesforce/apex/QuoteService.getQuoteNumber';
 
 
 export default class ProductCart extends LightningElement {
-@api quoteId; // Optional: pass a Quote__c Id from parent when available
+@api quoteId; // Optional: pass a cg_Quote__c Id from parent when available
 @track cartItems = [];
 @track customText = '';
+@track quoteNumber;
 pdfLibsNotLoaded = true;
 
 
 connectedCallback() {
-Promise.all([
-loadScript(this, jsPDF),
-loadScript(this, jsPDFAutoTable)
-])
-.then(() => {
-// jsPDF UMD builds expose window.jspdf.jsPDF
-this.pdfLibsNotLoaded = false;
-})
-.catch(() => {
-this.pdfLibsNotLoaded = true; // keep button disabled
-});
+    Promise.all([
+        loadScript(this, jsPDF),
+        loadScript(this, jsPDFAutoTable)
+    ])
+    .then(() => {
+        // jsPDF UMD builds expose window.jspdf.jsPDF
+        this.pdfLibsNotLoaded = false;
+    })
+    .catch(() => {
+        this.pdfLibsNotLoaded = true; // keep button disabled
+    });
+    
+    // Fetch quote number when quoteId is available
+    if (this.quoteId) {
+        this.fetchQuoteNumber();
+    }
 }
 
 /**
  * Download PDF using server-side Apex + Visualforce.
- * Uses cart items directly (no Quote__c required).
+ * Uses cart items directly (no cg_Quote__c required).
  */
 async handleDownloadServerPdf() {
   try {
@@ -133,14 +140,14 @@ this.handlePrint();
 
 handleGenerateQuotePdf() {
   // Create a simple quote record with cart items for PDF generation
-  // In a real implementation, you'd create a Quote__c record first
+  // In a real implementation, you'd create a cg_Quote__c record first
   
   // For now, we'll use the existing cart data to generate a PDF
   // We'll create a temporary quote for demonstration purposes
   
   // In a production environment, you would:
-  // 1. Create a Quote__c record
-  // 2. Add Quote_Line__c records for each cart item
+  // 1. Create a cg_Quote__c record
+  // 2. Add cg_Quote_Lines__c records for each cart item
   // 3. Call the generateQuotePdf method with the quote ID and custom text
   
   // Since we don't have a backend service to create quotes yet,
@@ -238,5 +245,15 @@ handleCustomTextChange(event) {
 
   get grandTotal() {
     return this.subtotal + this.taxAmount + this.shippingAmount;
+  }
+  
+  fetchQuoteNumber() {
+    getQuoteNumber({ quoteId: this.quoteId })
+        .then(result => {
+            this.quoteNumber = result;
+        })
+        .catch(error => {
+            console.error('Error fetching quote number:', error);
+        });
   }
 }

@@ -5,7 +5,17 @@
         </lightning-layout-item>
 
         <lightning-layout-item size="4" class="slds-p-around_small">
-            <c-product-cart></c-product-cart>
+            <template if:true={quoteId}>
+                <lightning-card title="Quote Details">
+                    <div class="slds-p-around_small">
+                        <p>Quote ID: {quoteId}</p>
+                        <template if:true={quoteNumber}>
+                            <p>Quote Number: {quoteNumber}</p>
+                        </template>
+                    </div>
+                </lightning-card>
+            </template>
+            <c-product-cart quote-id={quoteId}></c-product-cart>
         </lightning-layout-item>
     </lightning-layout>
 </template>

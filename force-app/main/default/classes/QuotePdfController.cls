@@ -2,7 +2,7 @@
  * Controller for the Quote PDF Template Visualforce page
  */
 public with sharing class QuotePdfController {
-    public Quote__c quote { get; set; }
+    public cg_Quote__c quote { get; set; }
     // Strongly-typed DTO for cart lines passed from LWC
     public class CartLineDTO {
         @AuraEnabled public String productCode { get; set; }
@@ -23,13 +23,10 @@ public with sharing class QuotePdfController {
         customText = ApexPages.currentPage().getParameters().get('customText');
         String cartItemsJson = ApexPages.currentPage().getParameters().get('cartItemsJson');
         
-        // If quoteId provided, load limited Quote__c fields that exist in repo
+        // If quoteId provided, load limited cg_Quote__c fields that exist in repo
         if (quoteId != null) {
-            quote = [SELECT Id, Quote_Number__c, Account__c, Account__r.Name, Notes__c, 
-                     Grand_Total_Formula__c, Header_Charges_Formula__c, 
-                     Header_Discount_Amt__c, Tax_Total_Formula__c, 
-                     Shipping_Amount__c, Subtotal_Rollup__c, CreatedDate
-                     FROM Quote__c WHERE Id = :quoteId LIMIT 1];
+            quote = [SELECT Id, cg_Quote_number__c, cg_Account__c, cg_Account__r.Name
+                     FROM cg_Quote__c WHERE Id = :quoteId LIMIT 1];
         }
         
         // If cart JSON provided, parse to DTOs
