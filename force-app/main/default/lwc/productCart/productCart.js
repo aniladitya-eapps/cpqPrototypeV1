@@ -28,17 +28,24 @@ this.pdfLibsNotLoaded = true; // keep button disabled
 
 /**
  * Download PDF using server-side Apex + Visualforce.
- * Requires quoteId to be set (passed from parent).
+ * Uses cart items directly (no Quote__c required).
  */
 async handleDownloadServerPdf() {
   try {
-    if (!this.quoteId) {
-      // No Quote id; you can wire this to create one first (future enhancement)
-      // For now we simply return.
-      // Consider surfacing a toast if you have lightning/platformShowToastEvent available.
-      return;
-    }
-    const base64 = await generateQuotePdf({ quoteId: this.quoteId, customText: this.customText || '' });
+    // Prepare cart items in the expected format for Apex
+    const cartItems = this.cartItems.map(item => ({
+      productCode: item.ProductCode || '',
+      qty: item.Quantity || 0,
+      unitPrice: item.UnitPrice || 0,
+      discount: 0, // No discount in current cart data
+      total: (item.UnitPrice || 0) * (item.Quantity || 0)
+    }));
+
+    const base64 = await generateQuotePdf({ 
+      quoteId: null, 
+      customText: this.customText || '',
+      cartItemsJson: JSON.stringify(cartItems)
+    });
 
     // Create a blob and trigger download
     const byteCharacters = atob(base64);

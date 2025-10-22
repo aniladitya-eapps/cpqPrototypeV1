@@ -69,25 +69,32 @@
     </div>
     
     <h2>Items</h2>
-    <apex:outputPanel rendered="{!NOT(ISNULL(quoteLines)) && (quoteLines.size > 0)}">
+    <!-- Render cart lines passed from LWC (no schema dependency) -->
+    <apex:outputPanel rendered="{!NOT(ISNULL(cartLines)) && (cartLines.size > 0)}">
         <table class="items-table">
             <thead>
                 <tr>
-                    <th>Item</th>
-                    <th>Details</th>
+                    <th>Product Code</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Discount</th>
+                    <th>Total</th>
                 </tr>
             </thead>
             <tbody>
-                <apex:repeat value="{!quoteLines}" var="line">
+                <apex:repeat value="{!cartLines}" var="line">
                     <tr>
-                        <td>Item</td>
-                        <td>Details</td>
+                        <td>{!line.productCode}</td>
+                        <td>{!line.qty}</td>
+                        <td>{!line.unitPrice}</td>
+                        <td>{!line.discount}</td>
+                        <td>{!line.total}</td>
                     </tr>
                 </apex:repeat>
             </tbody>
         </table>
     </apex:outputPanel>
-    <apex:outputPanel rendered="{!ISNULL(quoteLines) || (quoteLines.size = 0)}">
+    <apex:outputPanel rendered="{!ISNULL(cartLines) || (cartLines.size = 0)}">
         <p class="muted">No line items available.</p>
     </apex:outputPanel>
     

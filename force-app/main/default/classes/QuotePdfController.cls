@@ -3,27 +3,66 @@
  */
 public with sharing class QuotePdfController {
     public Quote__c quote { get; set; }
-    public List<sObject> quoteLines { get; set; }
+    // Strongly-typed DTO for cart lines passed from LWC
+    public class CartLineDTO {
+        @AuraEnabled public String productCode { get; set; }
+        @AuraEnabled public Decimal qty { get; set; }
+        @AuraEnabled public Decimal unitPrice { get; set; }
+        @AuraEnabled public Decimal discount { get; set; } // percent (0-100) or amount depending on LWC
+        @AuraEnabled public Decimal total { get; set; }
+    }
+    public List<CartLineDTO> cartLines { get; set; }
     public String customText { get; set; }
     public String quoteId { get; set; }
     
     public QuotePdfController() {
-        // Initialize to avoid null checks in VF
-        quoteLines = new List<sObject>();
+        cartLines = new List<CartLineDTO>();
         
-        // Get the quote ID from the page parameters
+        // Read parameters
         quoteId = ApexPages.currentPage().getParameters().get('quoteId');
         customText = ApexPages.currentPage().getParameters().get('customText');
+        String cartItemsJson = ApexPages.currentPage().getParameters().get('cartItemsJson');
         
+        // If quoteId provided, load limited Quote__c fields that exist in repo
         if (quoteId != null) {
-            // Load the quote record (limit fields to those present in repo)
             quote = [SELECT Id, Quote_Number__c, Account__c, Account__r.Name, Notes__c, 
                      Grand_Total_Formula__c, Header_Charges_Formula__c, 
                      Header_Discount_Amt__c, Tax_Total_Formula__c, 
                      Shipping_Amount__c, Subtotal_Rollup__c, CreatedDate
                      FROM Quote__c WHERE Id = :quoteId LIMIT 1];
-            
-            // No Quote_Line__c fields available in repo; skip querying lines to avoid deployment errors
         }
+        
+        // If cart JSON provided, parse to DTOs
+        if (!String.isBlank(cartItemsJson)) {
+            try {
+                List<Object> raw = (List<Object>) JSON.deserializeUntyped(cartItemsJson);
+                for (Object o : raw) {
+                    Map<String, Object> m = (Map<String, Object>) o;
+                    CartLineDTO dto = new CartLineDTO();
+                    dto.productCode = (String) m.get('productCode');
+                    // Coerce numeric values safely
+                    dto.qty = toDecimal(m.get('qty'));
+                    dto.unitPrice = toDecimal(m.get('unitPrice'));
+                    dto.discount = toDecimal(m.get('discount'));
+                    dto.total = toDecimal(m.get('total'));
+                    cartLines.add(dto);
+                }
+            } catch (Exception e) {
+                // If parsing fails, leave cartLines empty
+                System.debug('Failed to parse cartItemsJson: ' + e.getMessage());
+            }
+        }
+    }
+    
+    private static Decimal toDecimal(Object v) {
+        if (v == null) return 0;
+        if (v instanceof Decimal) return (Decimal) v;
+        if (v instanceof Integer) return Decimal.valueOf((Integer) v);
+        if (v instanceof Long) return Decimal.valueOf((Long) v);
+        if (v instanceof Double) return Decimal.valueOf((Double) v);
+        if (v instanceof String) {
+            try { return Decimal.valueOf((String) v); } catch (Exception e) { return 0; }
+        }
+        return 0;
     }
 }
