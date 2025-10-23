@@ -1,151 +1,190 @@
 # CPQ Prototype V1
 
-This project contains a lightweight CPQ-style prototype with LWC components and Apex services to build quotes, cache a printable payload, and render a PDF.
+A Salesforce DX project showcasing a lightweight CPQ-style flow with Lightning Web Components (LWC), Apex services, and a Visualforce PDF renderer. Users can search/select products, build a cart, generate a printable Quote PDF using Platform Cache, and optionally create Quotes from Opportunities.
 
-## ProductCart → createCacheJob Payload
+- Project name: Prototype1
+- API Version: 64.0
+- Package directory: force-app
+- Tooling: ESLint, Prettier, sfdx-lwc-jest, Husky
 
-The `productCart` LWC builds a payload from the cart (selected products) and sends it to the Apex method `QuotePrintCache.createCacheJob`. The cached payload is then consumed by the Visualforce page `QuotePrintablePDF` to render a printable PDF.
+## Contents
 
-Source:
-- LWC: `force-app/main/default/lwc/productCart/productCart.js`
-- Apex cache entry point: `@AuraEnabled QuotePrintCache.createCacheJob(payloadJson)`
-- PDF renderer: `force-app/main/default/pages/QuotePrintablePdf.page` (controller: `QuotePrintablePdfCtrl.cls`)
+- Overview
+- App Architecture
+- Key Features
+- Data Model
+- Components and Apex
+- PDF Generation Flow
+- Local Development
+- Testing and Linting
+- Deployment and Org Tasks
+- Repository Structure
 
-### Trigger Point
+## Overview
 
-Inside `productCart`, the action is initiated by `handleGenerateQuotePdf()`.
+This prototype implements:
+- Product discovery and cart building in LWC.
+- Quote context fetching (Quote number/status, Bill-To/Ship-To from Opportunity).
+- Client-side discounting, line totals, and order totals.
+- PDF generation via a cached payload and a Visualforce page.
+- Utility Apex to create Quotes from Opportunities and a placeholder approval engine.
 
-```
-createCacheJob({ payloadJson: JSON.stringify(payload) })
-  .then(key => {
-    const url = '/apex/QuotePrintablePDF?k=' + key;
-    window.open(url, '_blank');
-  });
-```
+## App Architecture
 
-### Payload Shape
+- UI: Lightning Web Components in `force-app/main/default/lwc`.
+- Server: Apex classes under `force-app/main/default/classes`.
+- Persistence/Metadata: Custom objects `cg_Quote__c` and `cg_Quote_Lines__c`.
+- Rendering: Visualforce page `QuotePrintablePdf` with controller `QuotePrintablePdfCtrl`.
+- Temporary payload storage: Apex `QuotePrintCache` (Platform Cache/Session cache approach).
 
-The payload is assembled from cart state and quote context, then JSON-stringified and passed as `payloadJson`:
+High-level flow:
+1. Search products → add to cart.
+2. Cart computes totals.
+3. Generate PDF → LWC assembles payload → Apex caches → VF renders PDF from cached payload.
 
-```
-{
-  quoteId: string | null,
-  quoteNumber: string | null,
-  billTo: {
-    street?: string,
-    city?: string,
-    state?: string,
-    postalCode?: string,
-    country?: string
-  } | {},
-  shipTo: {
-    street?: string,
-    city?: string,
-    state?: string,
-    postalCode?: string,
-    country?: string
-  } | {},
-  items: Array<{
-    ProductCode: string,
-    Quantity: number,
-    UnitPrice: number,
-    DiscountType: 'Amount' | 'Percent',
-    DiscountValue: number,
-    NetPrice: number
-  }>,
-  terms: string
-}
-```
+## Key Features
 
-Notes:
-- `quoteId` and `quoteNumber` are included if available; otherwise `null`.
-- `billTo` and `shipTo` are populated from Opportunity addresses if `opportunityId` is known.
-- `terms` comes from user-entered free text (`customText`).
-- Each item includes a normalized `DiscountType` (`Amount` or `Percent`) and a numeric `DiscountValue`.
-- `NetPrice` is precomputed client-side as gross - discount.
+- Product search and catalog viewing.
+- Cart with per-line discount (amount/percent), totals, and address capture from Opportunity.
+- Quote number/status retrieval when `quoteId` is provided.
+- PDF generation using Platform Cache handshake (short-lived key).
+- Quote creation from Opportunity.
+- Approval submission placeholder.
 
-### How Each Field Is Derived
+## Data Model
 
-- quoteId: `@api quoteId` passed in from parent context.
-- quoteNumber: Fetched via `QuoteService.getQuoteNumber` or `QuoteService.getQuoteFields`.
-- billTo / shipTo: Fetched via `QuoteService.getOpportunityAddresses(opportunityId)` when an Opportunity Id is known.
-- items: Built from `cartItemsWithTotals`, which itself normalizes quantity/price and calculates discounts:
-  - Quantity: `Number(item.Quantity || 0)`
-  - UnitPrice: `Number(item.UnitPrice || 0)`
-  - DiscountType: `item.DiscountType === 'Amount' ? 'Amount' : 'Percent'`
-  - DiscountValue: `Number(item.DiscountValue || 0)`
-  - NetPrice: `Number(item.netPrice || 0)` (net of line-level discount)
-- terms: `customText` input by the user in the cart.
+Custom objects:
+- cg_Quote__c
+  - Fields: cg_Account__c (Lookup), cg_Opportunity__c (Lookup), cg_Quote_number__c (Text)
+- cg_Quote_Lines__c
+  - Fields: cg_Product_Code__c (Text), cg_Quantity__c (Number), cg_Unit_Price__c (Currency),
+            cg_Discount_percent__c (Percent), cg_Discount_Amount__c (Currency), cg_Total__c (Currency)
 
-### Upstream Data Flow Summary
+These are used by server processes and for potential persistence of quotes and lines.
 
-1. User adds products to the cart via `@api addItem(product)`, which normalizes:
-   - Quantity from `product.Quantity` or `product.Quantity__c` (default 1)
-   - UnitPrice from `product.UnitPrice` (default 0)
-   - Discount defaults to Percent when unspecified
-2. If `OpportunityId` is detected on the first product, it is retained and addresses are fetched.
-3. When "Generate PDF" is clicked:
-   - `cartItemsWithTotals` computes `lineTotal`, `discountAmount`, and `netPrice` per line.
-   - The `payload` object is constructed (see shape above).
-   - `QuotePrintCache.createCacheJob(payloadJson)` caches the payload and returns a short-lived key.
-   - The component opens `/apex/QuotePrintablePDF?k={key}` in a new tab. The page/controller read the cached payload and render the PDF.
+## Components and Apex
 
-### Validation and Edge Cases
+LWC
+- approvals: Placeholder UI for approvals.
+- createQuoteQuickAction / createQuoteQuickActionHeadless: Quick actions to create quotes from Opportunity.
+- opportunityQuoteButton: Button to launch quote creation from Opportunity.
+- pricingEngine: UI for pricing/discount logic demonstration.
+- productCatalog: Display available products.
+- productSearch: Search products.
+- productPage: Container page for catalog/cart experience.
+- productCart: Main cart experience, builds the print payload and triggers PDF generation.
 
-- Empty cart: Shows a toast and aborts.
-- Discount input: Only allows numeric, non-negative values, capped at 100% for cart-level discount (used in totals UI).
-- Item-level discount: Each item enforces 0 ≤ Percent ≤ 100, and Amount capped to gross.
+Apex Classes
+- CreateQuoteFromOpportunity.cls: Logic to create a new quote from an Opportunity.
+- ProductPageWithQuoteController.cls: Controller support for the product page with Quote context.
+- ProductSearchController.cls: Product search endpoints.
+- QuoteService.cls: Quote-related helpers
+  - getQuoteNumber(quoteId)
+  - getQuoteFields(quoteId) → quoteNumber, quoteStatus
+  - getOpportunityAddresses(opportunityId) → billTo/shipTo address blobs
+- QuotePrintCache.cls: Accepts serialized payload and writes/reads from a cache boundary
+  - createCacheJob(payloadJson) → returns short-lived key
+- QuotePrintablePdfCtrl.cls: Controller for PDF Visualforce page. Reads cache by key, prepares data for rendering.
+- SpreadsheetApprovalEngine.cls / SpreadsheetRulesFromFiles.cls: Placeholder/sample rules/approvals engine.
 
-### Related Apex
+Visualforce
+- QuotePrintablePdf.page: Renders the printable PDF using the cached payload via `QuotePrintablePdfCtrl`.
 
-- `QuoteService.getQuoteNumber(quoteId)`
-- `QuoteService.getQuoteFields(quoteId)`
-- `QuoteService.getOpportunityAddresses(opportunityId)`
-- `QuotePrintCache.createCacheJob(payloadJson)`
+Other
+- Triggers: linkCOACustomerToLMALicense.trigger (sample linkage logic).
+- Permissionsets, tabs, layouts, flexipages, flows: Supplemental metadata to support UI.
 
-### Where to Update If Payload Needs Changes
+## PDF Generation Flow
 
-- Add/Remove fields in the client payload: `force-app/main/default/lwc/productCart/productCart.js` inside `handleGenerateQuotePdf()`.
-- Update server cache handling: `force-app/main/default/classes/QuotePrintCache.cls`.
-- Update the PDF controller mapping: `force-app/main/default/classes/QuotePrintablePdfCtrl.cls`.
-- Adjust PDF layout: `force-app/main/default/pages/QuotePrintablePdf.page`.
+From productCart LWC (handleGenerateQuotePdf):
+1. Validate cart not empty.
+2. Build items from `cartItemsWithTotals`:
+   - ProductCode
+   - Quantity (number)
+   - UnitPrice (number)
+   - DiscountType ('Amount' | 'Percent')
+   - DiscountValue (number)
+   - NetPrice (number)
+3. Assemble payload:
+   - quoteId (nullable)
+   - quoteNumber (nullable)
+   - billTo { street, city, state, postalCode, country } from Opportunity (if available)
+   - shipTo { street, city, state, postalCode, country } from Opportunity (if available)
+   - items [as above]
+   - terms (string from user input)
+4. Call Apex cache: QuotePrintCache.createCacheJob({ payloadJson: JSON.stringify(payload) })
+5. Open Visualforce: /apex/QuotePrintablePDF?k={key}
+6. VF controller loads cached payload and renders PDF.
 
-### Example Payload
+## Local Development
 
-```
-{
-  "quoteId": "a1Q...001",
-  "quoteNumber": "Q-000123",
-  "billTo": {
-    "street": "123 Main St",
-    "city": "San Francisco",
-    "state": "CA",
-    "postalCode": "94105",
-    "country": "US"
-  },
-  "shipTo": {
-    "street": "456 Market St",
-    "city": "San Francisco",
-    "state": "CA",
-    "postalCode": "94107",
-    "country": "US"
-  },
-  "items": [
-    {
-      "ProductCode": "CAR-SEDAN",
-      "Quantity": 2,
-      "UnitPrice": 25000,
-      "DiscountType": "Percent",
-      "DiscountValue": 10,
-      "NetPrice": 45000
-    }
-  ],
-  "terms": "Net 30. FOB shipping point."
-}
-```
+Prerequisites
+- Node.js LTS
+- Salesforce CLI (sf)
+- VS Code with Salesforce extensions
 
-## Development Notes
+Install dependencies
+- npm install
 
-- Always use `sf` CLI, not `sfdx`.
-- Prefer MCP tools where available.
-- Ensure related metadata files are checked in for Apex classes and triggers.
+Run linters/formatters
+- npm run lint
+- npm run prettier
+- npm run prettier:verify
+
+Unit tests (LWC)
+- npm test
+- npm run test:unit:watch
+- npm run test:unit:coverage
+
+## Deployment and Org Tasks
+
+Use MCP tools where available first. Otherwise, examples below show sf CLI equivalents.
+
+Authorize an org
+- sf org login web --alias my-org
+
+Deploy metadata
+- sf project deploy start --source-dir force-app --target-org my-org
+
+Run Apex tests (examples)
+- sf apex test run --test-level RunLocalTests --target-org my-org --wait 20 --result-format human
+
+Open the org
+- sf org open --target-org my-org
+
+Data retrieval (SOQL examples)
+- sf data query --query "SELECT Id, Name FROM Account LIMIT 5" --target-org my-org
+
+## Testing and Linting
+
+- ESLint with @salesforce/eslint-config-lwc for LWC and plugins for Aura/Lightning.
+- Prettier with apex and xml plugins.
+- Jest via @salesforce/sfdx-lwc-jest.
+- Husky + lint-staged to enforce formatting and tests on commit.
+
+Common scripts (package.json)
+- lint: eslint **/{aura,lwc}/**/*.js
+- prettier / prettier:verify
+- test:unit, test:unit:watch, test:unit:debug, test:unit:coverage
+
+## Repository Structure
+
+- force-app/main/default
+  - classes/ (Apex)
+  - lwc/ (Lightning Web Components)
+  - aura/
+  - pages/ (Visualforce)
+  - objects/ (Custom objects and fields)
+  - flows/, layouts/, tabs/, permissionsets/, staticresources/
+  - triggers/
+- scripts/ (apex, soql)
+- manifest/ (package.xml)
+- eslint.config.js, jest.config.js, .prettierrc, .prettierignore
+
+## References
+
+- LWC productCart payload assembly: force-app/main/default/lwc/productCart/productCart.js
+- Apex cache: force-app/main/default/classes/QuotePrintCache.cls
+- PDF controller: force-app/main/default/classes/QuotePrintablePdfCtrl.cls
+- PDF page: force-app/main/default/pages/QuotePrintablePdf.page
+- Quote services: force-app/main/default/classes/QuoteService.cls
