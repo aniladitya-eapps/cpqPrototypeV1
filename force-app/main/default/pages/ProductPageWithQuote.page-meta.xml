@@ -3,5 +3,5 @@
     <apiVersion>58.0</apiVersion>
     <availableInTouch>false</availableInTouch>
     <confirmationTokenRequired>false</confirmationTokenRequired>
-    <label>QuotePdfTemplate</label>
+    <label>ProductPageWithQuote</label>
 </ApexPage>

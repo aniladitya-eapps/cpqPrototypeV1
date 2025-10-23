@@ -1,4 +1,10 @@
 <template>
+    <!-- Navigation Buttons -->
+    <div class="slds-p-around_small slds-grid slds-grid_align-spread">
+        <lightning-button variant="neutral" label="Back to Opportunity" onclick={handleBackToOpportunity}></lightning-button>
+        <lightning-button variant="brand" label="Proceed to Advanced Pricing" onclick={handleProceedToAdvancedPricing}></lightning-button>
+    </div>
+
     <lightning-layout multiple-rows>
         <lightning-layout-item size="8" class="slds-p-around_small">
             <c-product-search onaddtocart={handleAddToCart}></c-product-search>
@@ -9,9 +15,8 @@
                 <lightning-card title="Quote Details">
                     <div class="slds-p-around_small">
                         <p>Quote ID: {quoteId}</p>
-                        <template if:true={quoteNumber}>
-                            <p>Quote Number: {quoteNumber}</p>
-                        </template>
+                        <p>Quote Number: {quoteNumber}</p>
+                        <p>Quote Status: {quoteStatus}</p>
                     </div>
                 </lightning-card>
             </template>

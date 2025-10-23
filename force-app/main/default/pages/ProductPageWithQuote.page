@@ -3,7 +3,7 @@
     <div id="container"></div>
     <script>
         $Lightning.use("c__productPageApp", function() {
-            $Lightning.createComponent("c__productPage", {"quoteId": "{!quoteId}"}, "container");
+            $Lightning.createComponent("c__productPage", {"quoteId": "{!quoteId}", "quoteNumber": "{!quoteNumber}"}, "container");
         });
     </script>
 </apex:page>

@@ -1,55 +1,151 @@
-# Salesforce CPQ Prototype - PDF Generator
+# CPQ Prototype V1
 
-This project includes a PDF generator feature that can take data from the product cart and also let you add custom text.
+This project contains a lightweight CPQ-style prototype with LWC components and Apex services to build quotes, cache a printable payload, and render a PDF.
 
-## Features
+## ProductCart → createCacheJob Payload
 
-1. **Product Cart Component**: Displays selected products with quantities and pricing
-2. **PDF Generation**: 
-   - Generate PDFs from cart items
-   - Add custom text to be included in the PDF
-   - Two PDF generation options:
-     - Download PDF (using jsPDF for immediate client-side generation)
-     - Generate Quote PDF (using Visualforce for more professional formatting)
+The `productCart` LWC builds a payload from the cart (selected products) and sends it to the Apex method `QuotePrintCache.createCacheJob`. The cached payload is then consumed by the Visualforce page `QuotePrintablePDF` to render a printable PDF.
 
-## Implementation Details
+Source:
+- LWC: `force-app/main/default/lwc/productCart/productCart.js`
+- Apex cache entry point: `@AuraEnabled QuotePrintCache.createCacheJob(payloadJson)`
+- PDF renderer: `force-app/main/default/pages/QuotePrintablePdf.page` (controller: `QuotePrintablePdfCtrl.cls`)
 
-### Apex Classes
-- `QuotePdfGenerator.cls`: Main Apex class for PDF generation
-- `QuotePdfController.cls`: Controller for the Visualforce PDF template
+### Trigger Point
 
-### Visualforce Page
-- `QuotePdfTemplate.page`: Template for generating professional PDFs with custom text
+Inside `productCart`, the action is initiated by `handleGenerateQuotePdf()`.
 
-### Lightning Web Component
-- `productCart`: Enhanced with custom text input and PDF generation buttons
+```
+createCacheJob({ payloadJson: JSON.stringify(payload) })
+  .then(key => {
+    const url = '/apex/QuotePrintablePDF?k=' + key;
+    window.open(url, '_blank');
+  });
+```
 
-## How to Use
+### Payload Shape
 
-1. Add products to the cart using the product search functionality
-2. Enter any custom text you want to include in the PDF
-3. Click "Generate Quote PDF" to create a professionally formatted PDF with:
-   - Cart items and their details
-   - Custom text (if provided)
-   - Pricing breakdown (subtotal, tax, shipping, grand total)
+The payload is assembled from cart state and quote context, then JSON-stringified and passed as `payloadJson`:
 
-## Technical Architecture
+```
+{
+  quoteId: string | null,
+  quoteNumber: string | null,
+  billTo: {
+    street?: string,
+    city?: string,
+    state?: string,
+    postalCode?: string,
+    country?: string
+  } | {},
+  shipTo: {
+    street?: string,
+    city?: string,
+    state?: string,
+    postalCode?: string,
+    country?: string
+  } | {},
+  items: Array<{
+    ProductCode: string,
+    Quantity: number,
+    UnitPrice: number,
+    DiscountType: 'Amount' | 'Percent',
+    DiscountValue: number,
+    NetPrice: number
+  }>,
+  terms: string
+}
+```
 
-The solution uses a hybrid approach:
-- Client-side PDF generation with jsPDF for quick previews
-- Server-side PDF generation with Visualforce for professional formatting
-- Integration with existing Quote__c and Quote_Line__c objects
+Notes:
+- `quoteId` and `quoteNumber` are included if available; otherwise `null`.
+- `billTo` and `shipTo` are populated from Opportunity addresses if `opportunityId` is known.
+- `terms` comes from user-entered free text (`customText`).
+- Each item includes a normalized `DiscountType` (`Amount` or `Percent`) and a numeric `DiscountValue`.
+- `NetPrice` is precomputed client-side as gross - discount.
 
-## Deployment
+### How Each Field Is Derived
 
-To deploy this functionality:
-1. Deploy all Apex classes and Visualforce pages
-2. Deploy the updated LWC component
-3. Ensure proper permissions are set for the Quote__c and Quote_Line__c objects
+- quoteId: `@api quoteId` passed in from parent context.
+- quoteNumber: Fetched via `QuoteService.getQuoteNumber` or `QuoteService.getQuoteFields`.
+- billTo / shipTo: Fetched via `QuoteService.getOpportunityAddresses(opportunityId)` when an Opportunity Id is known.
+- items: Built from `cartItemsWithTotals`, which itself normalizes quantity/price and calculates discounts:
+  - Quantity: `Number(item.Quantity || 0)`
+  - UnitPrice: `Number(item.UnitPrice || 0)`
+  - DiscountType: `item.DiscountType === 'Amount' ? 'Amount' : 'Percent'`
+  - DiscountValue: `Number(item.DiscountValue || 0)`
+  - NetPrice: `Number(item.netPrice || 0)` (net of line-level discount)
+- terms: `customText` input by the user in the cart.
 
-## Future Enhancements
+### Upstream Data Flow Summary
 
-- Integration with actual Quote__c record creation
-- Support for different PDF templates
-- Export to other formats (Word, Excel)
-- Enhanced customization options for PDF styling
+1. User adds products to the cart via `@api addItem(product)`, which normalizes:
+   - Quantity from `product.Quantity` or `product.Quantity__c` (default 1)
+   - UnitPrice from `product.UnitPrice` (default 0)
+   - Discount defaults to Percent when unspecified
+2. If `OpportunityId` is detected on the first product, it is retained and addresses are fetched.
+3. When "Generate PDF" is clicked:
+   - `cartItemsWithTotals` computes `lineTotal`, `discountAmount`, and `netPrice` per line.
+   - The `payload` object is constructed (see shape above).
+   - `QuotePrintCache.createCacheJob(payloadJson)` caches the payload and returns a short-lived key.
+   - The component opens `/apex/QuotePrintablePDF?k={key}` in a new tab. The page/controller read the cached payload and render the PDF.
+
+### Validation and Edge Cases
+
+- Empty cart: Shows a toast and aborts.
+- Discount input: Only allows numeric, non-negative values, capped at 100% for cart-level discount (used in totals UI).
+- Item-level discount: Each item enforces 0 ≤ Percent ≤ 100, and Amount capped to gross.
+
+### Related Apex
+
+- `QuoteService.getQuoteNumber(quoteId)`
+- `QuoteService.getQuoteFields(quoteId)`
+- `QuoteService.getOpportunityAddresses(opportunityId)`
+- `QuotePrintCache.createCacheJob(payloadJson)`
+
+### Where to Update If Payload Needs Changes
+
+- Add/Remove fields in the client payload: `force-app/main/default/lwc/productCart/productCart.js` inside `handleGenerateQuotePdf()`.
+- Update server cache handling: `force-app/main/default/classes/QuotePrintCache.cls`.
+- Update the PDF controller mapping: `force-app/main/default/classes/QuotePrintablePdfCtrl.cls`.
+- Adjust PDF layout: `force-app/main/default/pages/QuotePrintablePdf.page`.
+
+### Example Payload
+
+```
+{
+  "quoteId": "a1Q...001",
+  "quoteNumber": "Q-000123",
+  "billTo": {
+    "street": "123 Main St",
+    "city": "San Francisco",
+    "state": "CA",
+    "postalCode": "94105",
+    "country": "US"
+  },
+  "shipTo": {
+    "street": "456 Market St",
+    "city": "San Francisco",
+    "state": "CA",
+    "postalCode": "94107",
+    "country": "US"
+  },
+  "items": [
+    {
+      "ProductCode": "CAR-SEDAN",
+      "Quantity": 2,
+      "UnitPrice": 25000,
+      "DiscountType": "Percent",
+      "DiscountValue": 10,
+      "NetPrice": 45000
+    }
+  ],
+  "terms": "Net 30. FOB shipping point."
+}
+```
+
+## Development Notes
+
+- Always use `sf` CLI, not `sfdx`.
+- Prefer MCP tools where available.
+- Ensure related metadata files are checked in for Apex classes and triggers.

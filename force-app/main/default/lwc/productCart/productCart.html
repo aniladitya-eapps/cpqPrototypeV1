@@ -1,83 +1,133 @@
 <template>
-<lightning-card title="Cart" icon-name="utility:cart">
-<template if:true={cartItems.length}>
-<div class="toolbar slds-p-horizontal_small slds-p-top_small">
-<lightning-button-group>
-<lightning-button label="Print" onclick={handlePrint}></lightning-button>
-<lightning-button label="Download PDF" variant="brand" onclick={handleDownloadPdf} disabled={pdfLibsNotLoaded}></lightning-button>
-<lightning-button label="Generate Quote PDF" variant="success" onclick={handleGenerateQuotePdf}></lightning-button>
-<lightning-button label="Download Server PDF" title="Use Apex + Visualforce" onclick={handleDownloadServerPdf}></lightning-button>
-</lightning-button-group>
-</div>
+  <lightning-card title="Cart" icon-name="utility:cart">
+    <template if:true={cartItems.length}>
+      <!-- PDF Action + Submit for Approval -->
+      <div class="slds-p-horizontal_small slds-p-top_small slds-grid slds-grid_align-spread">
+        <lightning-button
+          label="Generate Quote PDF"
+          variant="brand"
+          title="Generate a simple PDF of cart items"
+          onclick={handleGenerateQuotePdf}>
+        </lightning-button>
+        <lightning-button
+          label="Submit for Approval"
+          variant="neutral"
+          title="Submit current quote for approval"
+          onclick={handleSubmitForApproval}>
+        </lightning-button>
+      </div>
 
-<!-- Custom Text Input -->
-<div class="slds-p-horizontal_small slds-p-top_small">
-<lightning-textarea 
-    label="Custom Text" 
-    value={customText} 
-    onchange={handleCustomTextChange}
-    placeholder="Enter any custom text to include in the PDF..."
-    rows="3">
-</lightning-textarea>
-</div>
+      <!-- Custom Text Input -->
+      <div class="slds-p-horizontal_small slds-p-top_small">
+        <lightning-textarea
+          label="Terms & Conditions"
+          value={customText}
+          onchange={handleCustomTextChange}
+          placeholder="Enter any custom text to include in the PDF..."
+          rows="3">
+        </lightning-textarea>
+      </div>
 
-<div class="cart-printable" id="printArea">
-<h2 class="slds-text-heading_small slds-p-horizontal_small">Cart Items</h2>
-<ul class="slds-m-around_medium">
-<template for:each={cartItemsWithTotals} for:item="item">
-<li key={item.Id} class="slds-p-vertical_x-small slds-grid slds-grid_align-spread">
-<div>
-<strong>{item.Name}</strong>
-<span class="slds-m-left_small">{item.ProductCode}</span>
-<span class="slds-m-left_small">Qty: {item.Quantity}</span>
-<span class="slds-m-left_small">Line Total: {item.lineTotal}</span>
-</div>
-<lightning-button-icon icon-name="utility:delete" alternative-text="Remove" data-id={item.Id} onclick={handleRemove}></lightning-button-icon>
-</li>
-</template>
-</ul>
+      <!-- Quote Number and Status -->
+      <template if:true={quoteNumber}>
+        <div class="slds-p-horizontal_small slds-p-top_small">
+          <lightning-output-field 
+            label="Quote Number" 
+            value={quoteNumber}>
+          </lightning-output-field>
+        </div>
+        <div class="slds-p-horizontal_small slds-p-top_small">
+          <lightning-output-field 
+            label="Quote Status" 
+            value={quoteStatus}>
+          </lightning-output-field>
+        </div>
+      </template>
 
-<!-- Grand Total Section -->
-<div class="slds-p-around_medium slds-border_top">
-  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread">
-    <div>
-      <strong>Subtotal:</strong>
-    </div>
-    <div>
-      <lightning-formatted-number value={subtotal} style="currency" currency-code="USD"></lightning-formatted-number>
-    </div>
-  </div>
-  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-top_small">
-    <div>
-      <strong>Tax (10%):</strong>
-    </div>
-    <div>
-      <lightning-formatted-number value={taxAmount} style="currency" currency-code="USD"></lightning-formatted-number>
-    </div>
-  </div>
-  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-top_small">
-    <div>
-      <strong>Shipping:</strong>
-    </div>
-    <div>
-      <lightning-formatted-number value={shippingAmount} style="currency" currency-code="USD"></lightning-formatted-number>
-    </div>
-  </div>
-  <div class="slds-grid slds-grid_vertical-align-center slds-grid_align-spread slds-m-top_small slds-border_top slds-m-top_small">
-    <div>
-      <strong>Grand Total:</strong>
-    </div>
-    <div>
-      <lightning-formatted-number value={grandTotal} style="currency" currency-code="USD"></lightning-formatted-number>
-    </div>
-  </div>
-</div>
-</div>
-</template>
+      <!-- Discount Input -->
+      <div class="slds-p-horizontal_small slds-p-top_small">
+        <lightning-input
+          label="Discount (%)"
+          type="text"
+          value={discount}
+          onchange={handleDiscountChange}
+          placeholder="Enter discount percentage"
+          min="0"
+          max="100">
+        </lightning-input>
+      </div>
 
+      <!-- On-screen cart preview (optional) -->
+      <div class="cart-printable slds-p-bottom_medium" id="printArea">
+        <h2 class="slds-text-heading_small slds-p-horizontal_small">Cart Items</h2>
+        <ul class="slds-m-around_medium">
+          <template for:each={cartItemsWithTotals} for:item="item">
+            <li key={item.id}
+                class="slds-p-vertical_x-small slds-grid slds-grid_align-spread slds-wrap">
+              <div class="slds-truncate" title={item.Name}>
+                <strong>{item.Name}</strong>
+                <span class="slds-m-left_small">{item.ProductCode}</span>
+                <span class="slds-m-left_small">Qty: {item.Quantity}</span>
+                <span class="slds-m-left_small">
+                  Line Total:
+                  <lightning-formatted-number
+                    value={item.lineTotal}
+                    style="currency"
+                    currency-code="USD">
+                  </lightning-formatted-number>
+                </span>
+              </div>
 
-<template if:false={cartItems.length}>
-<p class="slds-p-around_medium">Your cart is empty.</p>
-</template>
-</lightning-card>
+              <lightning-button-icon
+                icon-name="utility:delete"
+                alternative-text="Remove line"
+                title={itemDeleteTitle}
+                data-id={item.id}
+                onclick={handleRemove}>
+              </lightning-button-icon>
+            </li>
+          </template>
+        </ul>
+
+        <!-- Summary -->
+        <div class="slds-p-around_medium slds-border_top">
+          <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center">
+            <div><strong>Subtotal:</strong></div>
+            <div>
+              <lightning-formatted-number value={subtotal} style="currency" currency-code="USD"></lightning-formatted-number>
+            </div>
+          </div>
+
+          <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-top_small">
+            <div><strong>Tax (10%):</strong></div>
+            <div>
+              <lightning-formatted-number value={taxAmount} style="currency" currency-code="USD"></lightning-formatted-number>
+            </div>
+          </div>
+
+          <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-top_small">
+            <div><strong>Shipping:</strong></div>
+            <div>
+              <lightning-formatted-number value={shippingAmount} style="currency" currency-code="USD"></lightning-formatted-number>
+            </div>
+          </div>
+
+          <div class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center slds-m-top_small slds-border_top">
+            <div><strong>Grand Total:</strong></div>
+            <div>
+              <lightning-formatted-number value={grandTotal} style="currency" currency-code="USD"></lightning-formatted-number>
+            </div>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Empty Cart -->
+    <template if:false={cartItems.length}>
+      <p class="slds-p-around_medium">Your cart is empty.</p>
+    </template>
+  </lightning-card>
+
+  <!-- Locker-safe manual DOM host for print iframe -->
+  <div class="print-host" lwc:dom="manual"></div>
 </template>
